@@ -6,10 +6,10 @@ face_cascade = cv2.CascadeClassifier('face_cascade/face_cascade.xml')
 while True:
     ret, image = capture.read()
 
-    faces = face_cascade.detectMultiScale(image, scaleFactor=1.5, minNeighbors=5, minSize=(20, 20))
+    faces = face_cascade.detectMultiScale(image, scaleFactor=1.5, minNeighbors=2, minSize=(30, 30))
 
     for (x, y, w, h) in faces:
-        cv2.rectangle(image, (x, y), (x + w, y + h), (150, 0, 150),
+        cv2.rectangle(image, (x, y), (x + w, y + h), (0, 0, 255),
                       2)  # рисуем прямоугольник на месте найденного лица
     cv2.imshow('Web Camera', image)
 
