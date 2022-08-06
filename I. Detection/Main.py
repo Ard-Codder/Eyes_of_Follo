@@ -1,5 +1,4 @@
 import cv2 as cv
-import numpy as np
 import os
 
 # Измените рабочую директорию на папку, в которой находится этот скрипт.
