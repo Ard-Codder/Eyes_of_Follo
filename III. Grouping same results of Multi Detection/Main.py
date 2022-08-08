@@ -39,7 +39,7 @@ def find_click_positions(desired_object_foto_path, full_foto_path, threshold=0.5
     # Если вы поставите его на 2, то для появления объекта требуется как минимум 3 перекрывающихся прямоугольника.
     # В результате я установил eps на 0,5, что составляет:
     # "Относительная разница между сторонами прямоугольников для объединения их в группу."
-    rectangles, weights = cv.groupRectangles(rectangles, groupThreshold=1, eps=0.5)
+    rectangles, weights = cv.groupRectangles(rectangles, groupThreshold=1, eps=0.2)
     # print(rectangles)
 
     points = []
@@ -84,12 +84,12 @@ def find_click_positions(desired_object_foto_path, full_foto_path, threshold=0.5
 
 # Результат с использованием крестов
 points = find_click_positions('white_car_on_@foto_of_parking_many_white_cars@.jpg',
-                              'foto_of_parking_many_white_cars.jpg', debug_mode='cross', threshold=0.5)
+                              'foto_of_parking_many_white_cars.jpg', debug_mode='cross', threshold=0.45)
 print(points)
 
 # Результат с использованием прямоугольников
 points = find_click_positions('white_car_on_@foto_of_parking_many_white_cars@.jpg',
                               'foto_of_parking_many_white_cars.jpg',
-                              threshold=0.50, debug_mode='rectangles')
+                              threshold=0.45, debug_mode='rectangles')
 print(points)
 print('Done.')

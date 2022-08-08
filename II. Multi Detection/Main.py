@@ -23,7 +23,7 @@ cv.imshow('Result', result)
 cv.waitKey()
 
 #  Я инвертировал порог и где сравнение для работаю с TM_SQDIFF_NORMED
-threshold = 0.5
+threshold = 0.45
 
 # Возвращаемое значение np.where() будет выглядеть следующим образом:
 # (array([1, 2, 3, 4, 5], dtype=int32), array([11, 22, 33, 44, 55], dtype=int32))
