@@ -2,10 +2,11 @@ import numpy as np
 import win32gui
 import win32ui
 import win32con
+from ctypes import windll
+from PIL import Image
 
 
 class WindowCapture:
-
     # характеристики
     w = 0
     h = 0
@@ -43,6 +44,38 @@ class WindowCapture:
 
     def get_screenshot(self):
 
+        left, top, right, bot = win32gui.GetWindowRect(self.hwnd)
+
+
+        hwndDC = win32gui.GetWindowDC(self.hwnd)
+        mfcDC = win32ui.CreateDCFromHandle(hwndDC)
+        saveDC = mfcDC.CreateCompatibleDC()
+
+        saveBitMap = win32ui.CreateBitmap()
+        saveBitMap.CreateCompatibleBitmap(mfcDC, self.w, self.h)
+
+        saveDC.SelectObject(saveBitMap)
+
+        # Change the line below depending on whether you want the whole window
+        # or just the client area.
+        # result = windll.user32.PrintWindow(hwnd, saveDC.GetSafeHdc(), 1)
+        result = windll.user32.PrintWindow(self.hwnd, saveDC.GetSafeHdc(), 0)
+        print(result)
+        bmpinfo = saveBitMap.GetInfo()
+        bmpstr = saveBitMap.GetBitmapBits(True)
+
+        img = Image.frombuffer(
+            'RGB',
+            (bmpinfo['bmWidth'], bmpinfo['bmHeight']),
+            bmpstr, 'raw', 'BGRX', 0, 1)
+
+        win32gui.DeleteObject(saveBitMap.GetHandle())
+        saveDC.DeleteDC()
+        mfcDC.DeleteDC()
+        win32gui.ReleaseDC(self.hwnd, hwndDC)
+
+
+        '''
         # получить данные об изображении окна
         wDC = win32gui.GetWindowDC(self.hwnd)
         dcObj = win32ui.CreateDCFromHandle(wDC)
@@ -75,6 +108,7 @@ class WindowCapture:
         # см. обсуждение здесь:
         # https://github.com/opencv/opencv/issues/14866#issuecomment-580207109
         img = np.ascontiguousarray(img)
+        '''
 
         return img
 
