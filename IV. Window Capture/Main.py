@@ -8,14 +8,15 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 
 # инициализируем класс WindowCapture
 
-wincap = WindowCapture('Steam')
+wincap = WindowCapture()
 
 loop_time = time()
 while True:
 
     # получить обновленный скрин игры(приложения)
-    screenshot = wincap.get_screenshot()
+    screenshot = wincap.get_screenshot('Steam')
 
+    # НУЖНО ЧТО-ТО ПРИДУМАТЬ: ЛИБО СКРИНШОТ В МАССИВ, ЛИБО ИЗМЕНИТЬ ВЫВОД
     cv.imshow('Computer Vision', screenshot)
 
     # отладка скорости цикла
