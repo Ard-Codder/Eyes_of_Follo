@@ -2,10 +2,11 @@ import numpy as np
 import win32gui
 import win32ui
 import win32con
+import ctypes
+from PIL import ImageGrab
 
 
 class WindowCapture:
-
     # характеристики
     w = 0
     h = 0
@@ -27,7 +28,7 @@ class WindowCapture:
         self.w = window_rect[2] - window_rect[0]
         self.h = window_rect[3] - window_rect[1]
 
-        '''# учитываем границу окна и заголовок и обрезаем их
+        # учитываем границу окна и заголовок и обрезаем их
         border_pixels = 8
         titlebar_pixels = 30
         self.w = self.w - (border_pixels * 2)
@@ -39,11 +40,25 @@ class WindowCapture:
         # изображения в фактическое положение на экране
         self.offset_x = window_rect[0] + self.cropped_x
         self.offset_y = window_rect[1] + self.cropped_y
-        '''
 
     def get_screenshot(self):
 
-        # получить данные об изображении окна
+        ctypes.windll.user32.SetProcessDPIAware()
+        dimensions = win32gui.GetWindowRect(self.hwnd)
+
+        # this gets the window size, comparing it to `dimensions` will show a difference
+        winsize = win32gui.GetClientRect(self.hwnd)
+
+        # this sets window to front if it is not already
+        win32gui.SetWindowPos(self.hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        win32gui.SetWindowPos(self.hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        win32gui.SetWindowPos(self.hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
+                              win32con.SWP_SHOWWINDOW | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+
+        # grab screen region set in `dimensions`
+        image = ImageGrab.grab(dimensions)
+
+        '''# получить данные об изображении окна
         wDC = win32gui.GetWindowDC(self.hwnd)
         dcObj = win32ui.CreateDCFromHandle(wDC)
         cDC = dcObj.CreateCompatibleDC()
@@ -73,10 +88,10 @@ class WindowCapture:
         #   File ... in draw_rectangles
         #   TypeError: an integer is required (got type tuple)
         # см. обсуждение здесь:
-        # https://github.com/opencv/opencv/issues/14866#issuecomment-580207109
-        img = np.ascontiguousarray(img)
+        # https://github.com/opencv/opencv/issues/1486 6#issuecomment-580207109
+        img = np.ascontiguousarray(img)'''
 
-        return img
+        return image
 
     # Найдем имя интересующего вас окна.
     # Как только вы это сделаете, обновите window_capture()
