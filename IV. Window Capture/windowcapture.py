@@ -29,7 +29,7 @@ class WindowCapture:
         self.h = window_rect[3] - window_rect[1]
 
         # учитываем границу окна и заголовок и обрезаем их
-        border_pixels = 8
+        border_pixels = 10
         titlebar_pixels = 30
         self.w = self.w - (border_pixels * 2)
         self.h = self.h - titlebar_pixels - border_pixels
@@ -50,13 +50,14 @@ class WindowCapture:
         winsize = win32gui.GetClientRect(self.hwnd)
 
         # this sets window to front if it is not already
-        win32gui.SetWindowPos(self.hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
-        win32gui.SetWindowPos(self.hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        # win32gui.SetWindowPos(self.hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
+        # win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
+        # win32gui.SetWindowPos(self.hwnd, win32con.HWND_TOPMOST, 0, 0, 0, 0, win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
         win32gui.SetWindowPos(self.hwnd, win32con.HWND_NOTOPMOST, 0, 0, 0, 0,
                               win32con.SWP_SHOWWINDOW | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
         # grab screen region set in `dimensions`
-        image = ImageGrab.grab(dimensions)
+        image = ImageGrab.grab(dimensions, all_screens=True)
 
         '''# получить данные об изображении окна
         wDC = win32gui.GetWindowDC(self.hwnd)

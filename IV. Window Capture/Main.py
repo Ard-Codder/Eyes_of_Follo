@@ -12,15 +12,22 @@ os.chdir(os.path.dirname(os.path.abspath(__file__)))
 # инициализируем класс WindowCapture
 
 # EYES_OF_FOLLO – Main.py
-wincap = WindowCapture('Discord')
+win_cap = WindowCapture('Steam')
 
 loop_time = time()
 while True:
 
     # получить обновленный скрин игры(приложения)
-    screenshot = wincap.get_screenshot()
+    screenshot = win_cap.get_screenshot()
 
-    cv.imshow('Computer Vision', np.array(screenshot))
+    # сохраняем скрин в удобном виде для OpenCV
+    image = np.array(screenshot)
+    b, g, r = cv.split(image)
+
+    # Изменили каналы, ибо появлялось не соответствие с оригинальным цветом
+    merge_image = cv.merge([r, g, b])
+
+    cv.imshow('Computer Vision', merge_image)
 
     # отладка скорости цикла
     print(f'FPS {1 / (time() - loop_time)}')
