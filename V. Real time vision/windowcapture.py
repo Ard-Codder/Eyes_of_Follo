@@ -17,11 +17,15 @@ class WindowCapture:
     offset_y = 0
 
     # конструктор
-    def __init__(self, window_name):
+    def __init__(self, window_name=None):
         # найти "дескриптор" окна, которое мы хотим захватить
-        self.hwnd = win32gui.FindWindow(None, window_name)
-        if not self.hwnd:
-            raise Exception(f'Window not found: {window_name}')
+        # если имя не передано, то захватываем весь экран
+        if window_name is None:
+            self.hwnd = win32gui.GetDesktopWindow()
+        else:
+            self.hwnd = win32gui.FindWindow(None, window_name)
+            if not self.hwnd:
+                raise Exception(f'Window not found: {window_name}')
 
         # получаем размер окна
         window_rect = win32gui.GetWindowRect(self.hwnd)
@@ -57,7 +61,7 @@ class WindowCapture:
                               win32con.SWP_SHOWWINDOW | win32con.SWP_NOMOVE | win32con.SWP_NOSIZE)
 
         # grab screen region set in `dimensions`
-        image = ImageGrab.grab(dimensions, all_screens=True)
+        image = ImageGrab.grab(dimensions)
 
         '''# получить данные об изображении окна
         wDC = win32gui.GetWindowDC(self.hwnd)
@@ -98,7 +102,7 @@ class WindowCapture:
     # Как только вы это сделаете, обновите window_capture()
     # https://stackoverflow.com/questions/55547940/how-to-get-a-list-of-the-name-of-every-open-window
     @staticmethod
-    def list_window_names(self):
+    def list_window_names():
         def win_enum_handler(hwnd, ctx):
             if win32gui.IsWindowVisible(hwnd):
                 print(hex(hwnd), win32gui.GetWindowText(hwnd))
@@ -112,6 +116,3 @@ class WindowCapture:
     # конструктор __init__.
     def get_screen_position(self, pos):
         return pos[0] + self.offset_x, pos[1] + self.offset_y
-
-
-WindowCapture.list_window_names(1)
