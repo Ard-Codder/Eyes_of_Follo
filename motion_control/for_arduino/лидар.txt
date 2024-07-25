@@ -1,0 +1,33 @@
+#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+// Создаем объект для работы с модулем VL53L0X
+Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
+
+void setup() {
+  // Инициализация последовательной связи для вывода результатов
+  Serial.begin(9600);
+  
+  // Проверяем, успешно ли инициализировался модуль VL53L0X
+  if (!sensor.begin()) {
+    Serial.println(F("Failed to boot VL53L0X"));
+    while(1); // Если инициализация не удалась, зацикливаем программу
+  }
+}
+
+void loop() {
+  VL53L0X_RangingMeasurementData_t measure;
+  
+  // Выполняем измерение расстояния
+  sensor.rangingTest(&measure, false);
+
+  if (measure.RangeStatus != 4) {  // Проверяем, что измерение действительно
+    // Выводим измеренное расстояние в миллиметрах
+    Serial.print(F("Range (mm): ")); 
+    Serial.println(measure.RangeMilliMeter);
+  } else {
+    Serial.println(F("Out of range")); // Если расстояние недоступно, выводим сообщение
+  }
+  
+  delay(100); // Задержка перед следующим измерением
+}

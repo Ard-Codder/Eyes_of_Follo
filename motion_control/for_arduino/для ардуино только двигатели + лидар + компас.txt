@@ -1,0 +1,160 @@
+#include <Servo.h>
+#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+#define LEFT_MOTOR_PIN 9  // Пин для левого двигателя
+#define RIGHT_MOTOR_PIN 10  // Пин для правого двигателя
+#define WHEEL_BASE 0.6  // Расстояние между колесами в метрах
+#define TIMEOUT_MS 1000  // Таймаут в миллисекундах
+#define MIN_DISTANCE 500  // Минимальное расстояние в мм, при котором двигатели не крутятся
+#define HMC5883L_ADDR 0x1E  // I2C адрес HMC5883L
+
+Servo leftMotor;
+Servo rightMotor;
+Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
+
+int linearVelocity = 0;  // Линейная скорость
+int angularVelocity = 0;  // Угловая скорость
+unsigned long lastCommandTime = 0;  // Время последней команды
+int targetHeading = 0;  // Целевое направление в градусах
+
+bool detectHMC5883L() {
+  // Читаем регистры идентификации
+  Wire.beginTransmission(HMC5883L_ADDR);
+  Wire.write(10);
+  Wire.endTransmission();
+  Wire.requestFrom(HMC5883L_ADDR, 3);
+  if (3 == Wire.available()) {
+    char a = Wire.read();
+    char b = Wire.read();
+    char c = Wire.read();
+    if (a == 'H' && b == '4' && c == '3')
+      return true;
+  }
+  return false;
+}
+
+int getHeading() {
+  int x, y, z;  // Данные с трех осей
+
+  // Указываем HMC5883L, с какого регистра начать чтение данных
+  Wire.beginTransmission(HMC5883L_ADDR);
+  Wire.write(0x03);  // Выбираем регистр 3, X MSB регистр
+  Wire.endTransmission();
+
+  // Читаем данные с каждой оси, 2 регистра на ось
+  Wire.requestFrom(HMC5883L_ADDR, 6);
+  if (6 <= Wire.available()) {
+    x = Wire.read() << 8;  // X msb
+    x |= Wire.read();  // X lsb
+    z = Wire.read() << 8;  // Z msb
+    z |= Wire.read();  // Z lsb
+    y = Wire.read() << 8;  // Y msb
+    y |= Wire.read();  // Y lsb
+  }
+
+  // Вычисляем направление в градусах
+  float heading = atan2(y, x);
+  if (heading < 0) heading += 2 * PI;
+  return heading * 180 / PI;
+}
+
+void setup() {
+  Serial.begin(9600);
+  leftMotor.attach(LEFT_MOTOR_PIN, 1000, 2000);
+  rightMotor.attach(RIGHT_MOTOR_PIN, 1000, 2000);
+  lastCommandTime = millis();  // Устанавливаем время последней команды в текущее время
+
+  // Проверяем, успешно ли инициализировался модуль VL53L0X
+  if (!sensor.begin()) {
+    Serial.println(F("Failed to boot VL53L0X"));
+    while (1);  // Если инициализация не удалась, зацикливаем программу
+  }
+
+  // Инициализация I2C и HMC5883L
+  Wire.begin();
+  TWBR = 78;  // 25 kHz
+  TWSR |= _BV(TWPS0);  // Изменяем предделитель
+  if (detectHMC5883L()) {
+    // Переводим HMC5883L в режим непрерывного измерения
+    Wire.beginTransmission(HMC5883L_ADDR);
+    Wire.write(0x02);  // Выбираем режим регистра
+    Wire.write(0x00);  // Режим непрерывного измерения
+    Wire.endTransmission();
+    targetHeading = getHeading();  // Устанавливаем целевое направление в текущее направление
+  } else {
+    Serial.println("No HMC5883L detected!");
+  }
+}
+
+void loop() {
+  VL53L0X_RangingMeasurementData_t measure;
+
+  // Выполняем измерение расстояния
+  sensor.rangingTest(&measure, false);
+
+  if (measure.RangeStatus != 4) {  // Проверяем, что измерение действительно
+    // Выводим измеренное расстояние в миллиметрах
+    Serial.print(F("Range (mm): "));
+    Serial.println(measure.RangeMilliMeter);
+
+    if (measure.RangeMilliMeter < MIN_DISTANCE) {
+      // Если измеренное расстояние меньше минимального, останавливаем двигатели
+      leftMotor.write(90);
+      rightMotor.write(90);
+    } else {
+      if (Serial.available() > 0) {
+        String data = Serial.readStringUntil('\n');
+        int commaIndex = data.indexOf(',');
+        if (commaIndex != -1) {
+          linearVelocity = data.substring(0, commaIndex).toInt();
+          angularVelocity = data.substring(commaIndex + 1).toInt();
+
+          // Ограничиваем значения linearVelocity и angularVelocity в диапазоне от -100 до 100
+          linearVelocity = max(-100, min(100, linearVelocity));
+          angularVelocity = max(-100, min(100, angularVelocity));
+
+          // Вычисляем текущее направление
+          int currentHeading = getHeading();
+
+          // Вычисляем угловую скорость на основе показаний компаса
+          int headingError = currentHeading - targetHeading;
+          if (headingError > 180) headingError -= 360;
+          if (headingError < -180) headingError += 360;
+          int headingKp = 1;  // Коэффициент пропорционального регулятора
+          angularVelocity += headingError * headingKp;
+
+          // Вычисляем скорость каждого колеса
+          float leftSpeed = (2 * linearVelocity - angularVelocity * WHEEL_BASE) / 2;
+          float rightSpeed = (2 * linearVelocity + angularVelocity * WHEEL_BASE) / 2;
+
+          // Ограничиваем значения скорости колес в диапазоне от -100 до 100
+          leftSpeed = max(-100, min(100, leftSpeed));
+          rightSpeed = max(-100, min(100, rightSpeed));
+
+          // Масштабируем значения скорости колес в диапазон от 0 до 180 для библиотеки Servo
+          leftSpeed = map(leftSpeed, -100, 100, 0, 180);
+          rightSpeed = map(rightSpeed, -100, 100, 0, 180);
+
+          // Устанавливаем скорость каждого колеса
+          leftMotor.write(leftSpeed);
+          rightMotor.write(rightSpeed);
+
+          // Обновляем время последней команды
+          lastCommandTime = millis();
+        }
+      }
+
+      // Проверяем таймаут
+      if (millis() - lastCommandTime > TIMEOUT_MS) {
+        // Если прошло больше секунды с момента последней команды, останавливаем робота
+        leftMotor.write(90);
+        rightMotor.write(90);
+      }
+    }
+  } else {
+    Serial.println(F("Out of range"));  // Если расстояние недоступно, выводим сообщение
+  }
+
+  delay(100);  // Задержка перед следующим измерением
+}

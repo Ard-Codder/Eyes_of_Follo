@@ -1,0 +1,92 @@
+#include <Servo.h>
+#include <Wire.h>
+#include <Adafruit_VL53L0X.h>
+
+#define LEFT_MOTOR_PIN 9  // Пин для левого двигателя
+#define RIGHT_MOTOR_PIN 10  // Пин для правого двигателя
+#define WHEEL_BASE 0.6  // Расстояние между колесами в метрах
+#define TIMEOUT_MS 1000  // Таймаут в миллисекундах
+#define MIN_DISTANCE 500  // Минимальное расстояние в мм, при котором двигатели не крутятся
+
+Servo leftMotor;
+Servo rightMotor;
+Adafruit_VL53L0X sensor = Adafruit_VL53L0X();
+
+int linearVelocity = 0;  // Линейная скорость
+int angularVelocity = 0;  // Угловая скорость
+unsigned long lastCommandTime = 0;  // Время последней команды
+
+void setup() {
+  Serial.begin(9600);
+  leftMotor.attach(LEFT_MOTOR_PIN, 1000, 2000);
+  rightMotor.attach(RIGHT_MOTOR_PIN, 1000, 2000);
+  lastCommandTime = millis();  // Устанавливаем время последней команды в текущее время
+
+  // Проверяем, успешно ли инициализировался модуль VL53L0X
+  if (!sensor.begin()) {
+    Serial.println(F("Failed to boot VL53L0X"));
+    while(1); // Если инициализация не удалась, зацикливаем программу
+  }
+}
+
+void loop() {
+  VL53L0X_RangingMeasurementData_t measure;
+
+  // Выполняем измерение расстояния
+  sensor.rangingTest(&measure, false);
+
+  if (measure.RangeStatus != 4) {  // Проверяем, что измерение действительно
+    // Выводим измеренное расстояние в миллиметрах
+    Serial.print(F("Range (mm): "));
+    Serial.println(measure.RangeMilliMeter);
+
+    if (measure.RangeMilliMeter < MIN_DISTANCE) {
+      // Если измеренное расстояние меньше минимального, останавливаем двигатели
+      leftMotor.write(90);
+      rightMotor.write(90);
+    } else {
+      if (Serial.available() > 0) {
+        String data = Serial.readStringUntil('\n');
+        int commaIndex = data.indexOf(',');
+        if (commaIndex != -1) {
+          linearVelocity = data.substring(0, commaIndex).toInt();
+          angularVelocity = data.substring(commaIndex + 1).toInt();
+
+          // Ограничиваем значения linearVelocity и angularVelocity в диапазоне от -100 до 100
+          linearVelocity = max(-100, min(100, linearVelocity));
+          angularVelocity = max(-100, min(100, angularVelocity));
+
+          // Вычисляем скорость каждого колеса
+          float leftSpeed = (2 * linearVelocity - angularVelocity * WHEEL_BASE) / 2;
+          float rightSpeed = (2 * linearVelocity + angularVelocity * WHEEL_BASE) / 2;
+
+          // Ограничиваем значения скорости колес в диапазоне от -100 до 100
+          leftSpeed = max(-100, min(100, leftSpeed));
+          rightSpeed = max(-100, min(100, rightSpeed));
+
+          // Масштабируем значения скорости колес в диапазон от 0 до 180 для библиотеки Servo
+          leftSpeed = map(leftSpeed, -100, 100, 0, 180);
+          rightSpeed = map(rightSpeed, -100, 100, 0, 180);
+
+          // Устанавливаем скорость каждого колеса
+          leftMotor.write(leftSpeed);
+          rightMotor.write(rightSpeed);
+
+          // Обновляем время последней команды
+          lastCommandTime = millis();
+        }
+      }
+
+      // Проверяем таймаут
+      if (millis() - lastCommandTime > TIMEOUT_MS) {
+        // Если прошло больше секунды с момента последней команды, останавливаем робота
+        leftMotor.write(90);
+        rightMotor.write(90);
+      }
+    }
+  } else {
+    Serial.println(F("Out of range")); // Если расстояние недоступно, выводим сообщение
+  }
+
+  delay(100); // Задержка перед следующим измерением
+}
